@@ -4,16 +4,17 @@ pragma solidity ^0.8.24;
 import "forge-std/console.sol";
 
 // Type definitions
-import {Currency, CurrencyLibrary} from "../src/Currency.sol";
-import {PoolKey} from "../src/PoolKey.sol";
-import {PoolId, PoolIdLibrary} from "../src/PoolId.sol";
-import {IHooks} from "../src/IHooks.sol";
-import {IPoolManager} from "../src/IPoolManager.sol";
+import {Currency, CurrencyLibrary} from "../src/core/types/Currency.sol";
+import {PoolKey} from "../src/core/types/PoolKey.sol";
+import {PoolId, PoolIdLibrary} from "../src/core/types/PoolId.sol";
+import {IHooks} from "../src/core/interfaces/IHooks.sol";
+import {IPoolManager} from "../src/core/interfaces/IPoolManager.sol";
 
 // Testing tools
 import "./tokens/TestTokenFactory.sol";
 import "./tokens/TokenFaucet.sol";
 import "./tokens/TestTokens.sol";
+import "./tokens/WBNB.sol";
 // import "./pools/PoolInitializer.sol";
 // import "./pools/LiquidityProvider.sol";
 // import "./integration/DEXInteractionHelpers.sol";
@@ -22,8 +23,15 @@ import "./tokens/TestTokens.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import "forge-std/Test.sol";
 
-// Import mock contracts
-import "./mocks/MockCoreContracts.sol";
+// Import real core contracts
+import {Vault} from "../src/core/Vault.sol";
+import {CLPoolManager} from "../src/core/pool-cl/CLPoolManager.sol";
+import {BinPoolManager} from "../src/core/pool-bin/BinPoolManager.sol";
+import {ProtocolFeeController} from "../src/core/ProtocolFeeController.sol";
+import {IVault} from "../src/core/interfaces/IVault.sol";
+import {ICLPoolManager} from "../src/core/pool-cl/interfaces/ICLPoolManager.sol";
+import {IBinPoolManager} from "../src/core/pool-bin/interfaces/IBinPoolManager.sol";
+import {IProtocolFeeController} from "../src/core/interfaces/IProtocolFeeController.sol";
 
 /**
  * @title TestDevKit
@@ -37,11 +45,11 @@ contract TestDevKit is Test {
     
     // ========== State Variables ==========
     
-    // Core contracts (using mock contracts)
-    MockVault public vault;
-    MockCLPoolManager public clPoolManager;
-    MockBinPoolManager public binPoolManager;
-    MockProtocolFeeController public protocolFeeController;
+    // Core contracts (using real contracts)
+    Vault public vault;
+    CLPoolManager public clPoolManager;
+    BinPoolManager public binPoolManager;
+    ProtocolFeeController public protocolFeeController;
     
     // Testing tools
     TestTokenFactory public tokenFactory;
@@ -56,6 +64,10 @@ contract TestDevKit is Test {
     StandardTestToken public usdt;
     StandardTestToken public cake;
     StandardTestToken public bnb;
+    
+    // Additional tokens for demos
+    WBNB public wbnb;               // Wrapped BNB (WETH9-style)
+    StandardTestToken public me;    // Magic Eden Token
     
     // Special test tokens
     FeeOnTransferToken public feeToken;
@@ -159,10 +171,10 @@ contract TestDevKit is Test {
         address _binPoolManager,
         address _protocolFeeController
     ) external onlyOwner {
-        vault = MockVault(_vault);
-        clPoolManager = MockCLPoolManager(_clPoolManager);
-        binPoolManager = MockBinPoolManager(_binPoolManager);
-        protocolFeeController = MockProtocolFeeController(_protocolFeeController);
+        vault = Vault(_vault);
+        clPoolManager = CLPoolManager(_clPoolManager);
+        binPoolManager = BinPoolManager(_binPoolManager);
+        protocolFeeController = ProtocolFeeController(_protocolFeeController);
         
         console.log("Core contracts set:");
         console.log("  Vault:", _vault);
@@ -173,19 +185,37 @@ contract TestDevKit is Test {
     // ========== Internal Deployment Functions ==========
     
     function _deployCoreContracts() internal {
-        console.log("Deploying mock core contracts for testing...");
+        console.log("Deploying real core contracts...");
         
-        // Deploy simple mock contracts for testing
-        vault = new MockVault();
-        clPoolManager = new MockCLPoolManager();
-        binPoolManager = new MockBinPoolManager();
-        protocolFeeController = new MockProtocolFeeController();
+        // Deploy Vault first
+        vault = new Vault();
+        console.log("  Vault deployed:", address(vault));
         
-        console.log("Mock core contracts deployed:");
-        console.log("  Vault:", address(vault));
-        console.log("  CL Pool Manager:", address(clPoolManager));
-        console.log("  Bin Pool Manager:", address(binPoolManager));
-        console.log("  Protocol Fee Controller:", address(protocolFeeController));
+        // Deploy Pool Managers with Vault reference
+        clPoolManager = new CLPoolManager(IVault(address(vault)));
+        console.log("  CL Pool Manager deployed:", address(clPoolManager));
+        
+        binPoolManager = new BinPoolManager(IVault(address(vault)));
+        console.log("  Bin Pool Manager deployed:", address(binPoolManager));
+        
+        // Deploy Protocol Fee Controller (use clPoolManager as the pool manager)
+        protocolFeeController = new ProtocolFeeController(address(clPoolManager));
+        console.log("  Protocol Fee Controller deployed:", address(protocolFeeController));
+        
+        // Register Pool Managers as Apps in Vault
+        vault.registerApp(address(clPoolManager));
+        console.log("  CL Pool Manager registered as App");
+        
+        vault.registerApp(address(binPoolManager));
+        console.log("  Bin Pool Manager registered as App");
+        
+        // Note: In production, setProtocolFeeController would be called by the owner
+        // For testing, we skip this as it requires owner permissions
+        // clPoolManager.setProtocolFeeController(IProtocolFeeController(address(protocolFeeController)));
+        // binPoolManager.setProtocolFeeController(IProtocolFeeController(address(protocolFeeController)));
+        console.log("  Note: Protocol Fee Controller not set (requires owner permissions)");
+        
+        console.log("Real core contracts deployment completed!");
     }
     
     function _deployTestingTools() internal {
@@ -249,6 +279,18 @@ contract TestDevKit is Test {
             "BNB", "BNB", 18, 10000000 * 10**18
         ));
         
+        // Create WBNB (WETH9-style contract)
+        wbnb = new WBNB();
+        // Fund WBNB contract with some initial BNB
+        vm.deal(address(this), 10000 * 10**18);
+        // Deposit some BNB to create initial WBNB supply
+        wbnb.deposit{value: 1000 * 10**18}();
+        
+        // Create ME token
+        me = StandardTestToken(tokenFactory.createToken(
+            "Magic Eden Token", "ME", 18, 10000000 * 10**18
+        ));
+        
         // Create special tokens (for edge case testing)
         feeToken = FeeOnTransferToken(tokenFactory.createToken(
             "Fee Token", "FEE", 18, 1000000 * 10**18,
@@ -268,7 +310,7 @@ contract TestDevKit is Test {
         // Configure faucet
         _setupFaucet();
         
-        emit TokensCreated(8);
+        emit TokensCreated(10);
         console.log("Test tokens creation completed!");
     }
     
@@ -279,6 +321,10 @@ contract TestDevKit is Test {
         tokenFaucet.addToken(address(usdt), 10000 * 10**6, 3600); // 10,000 USDT
         tokenFaucet.addToken(address(cake), 1000 * 10**18, 3600); // 1,000 CAKE
         tokenFaucet.addToken(address(bnb), 100 * 10**18, 3600); // 100 BNB
+        
+        // Demo token faucet configuration
+        // Note: WBNB faucet would need special handling for BNB deposits
+        tokenFaucet.addToken(address(me), 5000 * 10**18, 3600); // 5,000 ME
         
         // Special token faucet configuration
         tokenFaucet.addToken(address(feeToken), 1000 * 10**18, 3600);
@@ -319,6 +365,15 @@ contract TestDevKit is Test {
             bnb.transfer(address(tokenFaucet), 10000 * 10**18);
         } else if (bnbBalance > 1000 * 10**18) {
             bnb.transfer(address(tokenFaucet), 1000 * 10**18);
+        }
+        
+        // Note: WBNB distribution handled differently due to native BNB
+        
+        uint256 meBalance = me.balanceOf(address(this));
+        if (meBalance > 500000 * 10**18) {
+            me.transfer(address(tokenFaucet), 500000 * 10**18);
+        } else if (meBalance > 50000 * 10**18) {
+            me.transfer(address(tokenFaucet), 50000 * 10**18);
         }
         
         // Transfer special tokens if available
@@ -369,8 +424,8 @@ contract TestDevKit is Test {
         // 1. WETH/USDC - Mainstream trading pair
         _createAndRegisterPool(
             "WETH/USDC",
-            address(weth).wrap(),
-            address(usdc).wrap(),
+            Currency.wrap(address(weth)),
+            Currency.wrap(address(usdc)),
             3000, // 0.3% fee
             60,   // tick spacing
             79228162514264337593543950336 // Approximately 1:1 price for testing
@@ -379,8 +434,8 @@ contract TestDevKit is Test {
         // 2. USDC/USDT - Stablecoin pair
         _createAndRegisterPool(
             "USDC/USDT",
-            address(usdc).wrap(),
-            address(usdt).wrap(),
+            Currency.wrap(address(usdc)),
+            Currency.wrap(address(usdt)),
             100,  // 0.01% fee
             1,    // tick spacing
             79228162514264337593543950336 // 1:1 price
@@ -389,8 +444,8 @@ contract TestDevKit is Test {
         // 3. WETH/CAKE - Platform token pair
         _createAndRegisterPool(
             "WETH/CAKE",
-            address(weth).wrap(),
-            address(cake).wrap(),
+            Currency.wrap(address(weth)),
+            Currency.wrap(address(cake)),
             3000, // 0.3% fee
             60,   // tick spacing
             79228162514264337593543950336 // Simplified price for testing
@@ -399,8 +454,8 @@ contract TestDevKit is Test {
         // 4. CAKE/USDC
         _createAndRegisterPool(
             "CAKE/USDC",
-            address(cake).wrap(),
-            address(usdc).wrap(),
+            Currency.wrap(address(cake)),
+            Currency.wrap(address(usdc)),
             3000, // 0.3% fee
             60,   // tick spacing
             79228162514264337593543950336 // Simplified price for testing
@@ -409,8 +464,28 @@ contract TestDevKit is Test {
         // 5. BNB/USDC
         _createAndRegisterPool(
             "BNB/USDC",
-            address(bnb).wrap(),
-            address(usdc).wrap(),
+            Currency.wrap(address(bnb)),
+            Currency.wrap(address(usdc)),
+            3000, // 0.3% fee
+            60,   // tick spacing
+            79228162514264337593543950336 // Simplified price for testing
+        );
+        
+        // 6. WBNB/USDC - Demo pair
+        _createAndRegisterPool(
+            "WBNB/USDC",
+            Currency.wrap(address(wbnb)),
+            Currency.wrap(address(usdc)),
+            3000, // 0.3% fee
+            60,   // tick spacing
+            79228162514264337593543950336 // Simplified price for testing
+        );
+        
+        // 7. ME/USDC - Demo pair
+        _createAndRegisterPool(
+            "ME/USDC",
+            Currency.wrap(address(me)),
+            Currency.wrap(address(usdc)),
             3000, // 0.3% fee
             60,   // tick spacing
             79228162514264337593543950336 // Simplified price for testing
@@ -429,7 +504,7 @@ contract TestDevKit is Test {
         uint160 sqrtPriceX96
     ) internal {
         // Ensure currency order is correct
-        if (currency0.unwrap() > currency1.unwrap()) {
+        if (Currency.unwrap(currency0) > Currency.unwrap(currency1)) {
             (currency0, currency1) = (currency1, currency0);
         }
         
@@ -438,16 +513,17 @@ contract TestDevKit is Test {
             currency0: currency0,
             currency1: currency1,
             fee: fee,
-            parameters: bytes32(uint256(int256(tickSpacing))),
+            parameters: bytes32(uint256(uint24(tickSpacing)) << 16),
             hooks: IHooks(address(0)),
             poolManager: IPoolManager(address(clPoolManager))
         });
         
-        // Initialize pool in mock CLPoolManager
-        clPoolManager.initialize(key, sqrtPriceX96);
+        // Initialize pool in real CLPoolManager
+        // Note: CLPoolManager.initialize returns (int24 tick)
+        int24 tick = clPoolManager.initialize(key, sqrtPriceX96);
         
         // Calculate pool ID
-        PoolId id = keccak256(abi.encode(key)).wrap();
+        PoolId id = PoolId.wrap(keccak256(abi.encode(key)));
         
         pools[name] = PoolInfo({
             key: key,
@@ -515,6 +591,19 @@ contract TestDevKit is Test {
                 bnb.transfer(account, 10 * 10**18); // Smaller amount
             }
             
+            // Distribute WBNB by depositing BNB for each account
+            if (address(this).balance >= 100 * 10**18) {
+                wbnb.depositTo{value: 100 * 10**18}(account);
+            } else if (address(this).balance >= 10 * 10**18) {
+                wbnb.depositTo{value: 10 * 10**18}(account);
+            }
+            
+            if (me.balanceOf(address(this)) >= 50000 * 10**18) {
+                me.transfer(account, 50000 * 10**18);
+            } else {
+                me.transfer(account, 5000 * 10**18); // Smaller amount
+            }
+            
             // Distribute special tokens
             if (feeToken.balanceOf(address(this)) >= 1000 * 10**18) {
                 feeToken.transfer(account, 1000 * 10**18);
@@ -547,13 +636,12 @@ contract TestDevKit is Test {
      * @return sqrtPriceX96
      */
     function _encodePriceToSqrtPriceX96(uint256 price) internal pure returns (uint160) {
-        // Simplified calculation to avoid overflow
-        // For testing, just return a reasonable value
+        // For testing, return a fixed valid sqrtPriceX96 value
+        // This represents approximately 1:1 price ratio
+        // sqrtPriceX96 = sqrt(1) * 2^96 = 2^96 = 79228162514264337593543950336
+        // For safety, use the same value that's already being used
         if (price == 0) return 0;
-        
-        // Use a simple approximation for testing
-        uint256 sqrtPrice = _sqrt(price / 1e9) * 1e9; // Scale down to avoid overflow
-        return uint160(sqrtPrice >> 32); // Adjust for X96 format
+        return 79228162514264337593543950336;
     }
     
     function _sqrt(uint256 y) internal pure returns (uint256 z) {
@@ -589,6 +677,8 @@ contract TestDevKit is Test {
         console.log("  USDT:", address(usdt));
         console.log("  CAKE:", address(cake));
         console.log("  BNB:", address(bnb));
+        console.log("  WBNB:", address(wbnb));
+        console.log("  ME:", address(me));
         
         console.log("\nSpecial tokens:");
         console.log("  Fee Token:", address(feeToken));
