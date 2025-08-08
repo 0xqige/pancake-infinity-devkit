@@ -1,0 +1,8 @@
+forge-std/=lib/forge-std/src/
+@openzeppelin/=lib/openzeppelin-contracts/
+solmate/=lib/solmate/
+permit2/=lib/permit2/
+infinity-core/=infinity-core/
+infinity-periphery/=infinity-periphery/
+
+@src/=src/
