@@ -98,8 +98,8 @@ forge verify-contract <address> Vault --watch --chain <chain_id>
 
 ## 重要注意事项
 
-- 项目使用git submodules管理依赖
-- 必须在各自目录（infinity-core或infinity-periphery）中运行命令
+- 项目使用git submodules管理依赖 
 - 合约地址通过create3确定性部署
 - 测试隔离是必需的，以避免状态干扰
 - 使用Cancun EVM版本特性
+- Always use English wirte comment and doc

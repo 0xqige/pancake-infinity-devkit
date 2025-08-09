@@ -20,8 +20,6 @@ import {InfinityRouter} from "@src/periphery/InfinityRouter.sol";
 // Test tokens and tools
 import "../test/tokens/TestTokenFactory.sol";
 import "../test/tokens/TokenFaucet.sol";
-import "../test/pools/PoolInitializer.sol";
-import "../test/pools/LiquidityProvider.sol";
 
 /**
  * @title LocalDevDeploy
@@ -56,8 +54,6 @@ contract LocalDevDeploy is Script {
         // Testing tools
         TestTokenFactory tokenFactory;
         TokenFaucet tokenFaucet;
-        PoolInitializer poolInitializer;
-        LiquidityProvider liquidityProvider;
     }
 
     DeployConfig public config;
@@ -152,7 +148,7 @@ contract LocalDevDeploy is Script {
         // Due to the complexity of periphery contract constructors, providing basic framework here
 
         console.log("Periphery contract deployment - implementation of specific constructor parameters pending");
-        console.log("Required parameters: vault, poolManager, permit2, positionDescriptor, weth9, etc.");
+        console.log("Required parameters: vault, poolManager, permit2, positionDescriptor, wbnb, etc.");
     }
 
     /**
@@ -168,17 +164,6 @@ contract LocalDevDeploy is Script {
         // Deploy token faucet
         deployed.tokenFaucet = new TokenFaucet();
         console.log("Token Faucet deployed to:", address(deployed.tokenFaucet));
-
-        // Deploy pool initializer
-        deployed.poolInitializer =
-            new PoolInitializer(address(deployed.clPoolManager), address(deployed.binPoolManager));
-        console.log("Pool Initializer deployed to:", address(deployed.poolInitializer));
-
-        // Deploy liquidity provider
-        deployed.liquidityProvider = new LiquidityProvider(
-            address(deployed.vault), address(deployed.clPoolManager), address(deployed.binPoolManager)
-        );
-        console.log("Liquidity Provider deployed to:", address(deployed.liquidityProvider));
     }
 
     /**
@@ -206,9 +191,9 @@ contract LocalDevDeploy is Script {
 
         string memory json = vm.readFile(configPath);
 
-        // Create WETH
-        address weth = deployed.tokenFactory.createToken("Wrapped Ether", "WETH", 18, 1000000 * 10 ** 18);
-        console.log("WETH created:", weth);
+        // Create WBNB
+        address wbnb = deployed.tokenFactory.createToken("Wrapped BNB", "WBNB", 18, 1000000 * 10 ** 18);
+        console.log("WBNB created:", wbnb);
 
         // Create USDC
         address usdc = deployed.tokenFactory.createToken("USD Coin", "USDC", 6, 1000000 * 10 ** 6);
@@ -223,7 +208,7 @@ contract LocalDevDeploy is Script {
         console.log("CAKE created:", cake);
 
         // Add tokens to faucet
-        deployed.tokenFaucet.addToken(weth, 100 * 10 ** 18, 3600); // 100 WETH per claim, 1 hour cooldown
+        deployed.tokenFaucet.addToken(wbnb, 100 * 10 ** 18, 3600); // 100 WBNB per claim, 1 hour cooldown
         deployed.tokenFaucet.addToken(usdc, 10000 * 10 ** 6, 3600); // 10000 USDC per claim, 1 hour cooldown
         deployed.tokenFaucet.addToken(usdt, 10000 * 10 ** 6, 3600); // 10000 USDT per claim, 1 hour cooldown
         deployed.tokenFaucet.addToken(cake, 1000 * 10 ** 18, 3600); // 1000 CAKE per claim, 1 hour cooldown
@@ -239,7 +224,7 @@ contract LocalDevDeploy is Script {
         // TODO: Implement initial pool creation
         // Need to create different types of pools based on initialPools configuration in config file
         console.log("Initial pool creation - implementation pending");
-        console.log("Pools to create: WETH/USDC CL pool, USDC/USDT CL pool, WETH/CAKE Bin pool, etc.");
+        console.log("Pools to create: WBNB/USDC CL pool, USDC/USDT CL pool, WBNB/CAKE Bin pool, etc.");
     }
 
     /**
@@ -259,7 +244,5 @@ contract LocalDevDeploy is Script {
         console.log("Bin Pool Manager:", address(deployed.binPoolManager));
         console.log("Test Token Factory:", address(deployed.tokenFactory));
         console.log("Token Faucet:", address(deployed.tokenFaucet));
-        console.log("Pool Initializer:", address(deployed.poolInitializer));
-        console.log("Liquidity Provider:", address(deployed.liquidityProvider));
     }
 }

@@ -2,7 +2,7 @@
     "rpcUrl": "http://localhost:8545",
     "chainId": 31337,
     "create3Factory": "0x93FE0367bDb5A62a3aE87E2719Bc84319e5a222D",
-    "weth9": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    "wbnb": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "poolOwner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -40,9 +40,9 @@
         }
     ],
     "testTokens": {
-        "WETH": {
-            "name": "Wrapped Ether",
-            "symbol": "WETH",
+        "WBNB": {
+            "name": "Wrapped BNB",
+            "symbol": "WBNB",
             "decimals": 18,
             "initialSupply": "1000000000000000000000000"
         },
@@ -74,7 +74,7 @@
     "initialPools": [
         {
             "type": "CL",
-            "token0": "WETH",
+            "token0": "WBNB",
             "token1": "USDC",
             "fee": 3000,
             "tickSpacing": 60,
@@ -92,7 +92,7 @@
         },
         {
             "type": "Bin",
-            "token0": "WETH", 
+            "token0": "WBNB", 
             "token1": "CAKE",
             "fee": 2500,
             "binStep": 25,

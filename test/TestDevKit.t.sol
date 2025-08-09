@@ -37,7 +37,6 @@ contract TestDevKitTest is Test {
     
     function testTokensCreated() public {
         // 验证标准代币
-        assertTrue(address(devKit.weth()) != address(0), "WETH should be created");
         assertTrue(address(devKit.usdc()) != address(0), "USDC should be created");
         assertTrue(address(devKit.usdt()) != address(0), "USDT should be created");
         assertTrue(address(devKit.cake()) != address(0), "CAKE should be created");
@@ -70,17 +69,14 @@ contract TestDevKitTest is Test {
         // 检查测试账户的代币余额
         address alice = devKit.alice();
         
-        uint256 wethBalance = devKit.weth().balanceOf(alice);
         uint256 usdcBalance = devKit.usdc().balanceOf(alice);
         uint256 usdtBalance = devKit.usdt().balanceOf(alice);
         uint256 cakeBalance = devKit.cake().balanceOf(alice);
         
-        assertTrue(wethBalance > 0, "Alice should have WETH");
         assertTrue(usdcBalance > 0, "Alice should have USDC");
         assertTrue(usdtBalance > 0, "Alice should have USDT");
         assertTrue(cakeBalance > 0, "Alice should have CAKE");
         
-        console.log("Alice WETH balance:", wethBalance);
         console.log("Alice USDC balance:", usdcBalance);
         console.log("Alice USDT balance:", usdtBalance);
         console.log("Alice CAKE balance:", cakeBalance);
@@ -109,13 +105,13 @@ contract TestDevKitTest is Test {
         
         // 从水龙头领取代币
         vm.startPrank(newUser);
-        devKit.tokenFaucet().claimToken(address(devKit.weth()));
+        devKit.tokenFaucet().claimToken(address(devKit.usdc()));
         vm.stopPrank();
         
         // 验证余额
-        uint256 balance = devKit.weth().balanceOf(newUser);
-        assertTrue(balance > 0, "User should receive WETH from faucet");
+        uint256 balance = devKit.usdc().balanceOf(newUser);
+        assertTrue(balance > 0, "User should receive USDC from faucet");
         
-        console.log("Token faucet working normally, user received", balance, "WETH");
+        console.log("Token faucet working normally, user received", balance, "USDC");
     }
 }

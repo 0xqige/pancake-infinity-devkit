@@ -77,12 +77,9 @@ contract DeployTestDevKit is Script {
             console.log("\nMain contract addresses:");
             console.log("  Token Factory:", address(devKit.tokenFactory()));
             console.log("  Token Faucet:", address(devKit.tokenFaucet()));
-            // console.log("  Pool Initializer:", address(devKit.poolInitializer()));
-            // console.log("  Liquidity Provider:", address(devKit.liquidityProvider()));
-            // console.log("  DEX Helpers:", address(devKit.dexHelpers()));
 
             console.log("\nTest tokens:");
-            console.log("  WETH:", address(devKit.weth()));
+            console.log("  WBNB:", address(devKit.wbnb()));
             console.log("  USDC:", address(devKit.usdc()));
             console.log("  USDT:", address(devKit.usdt()));
             console.log("  CAKE:", address(devKit.cake()));

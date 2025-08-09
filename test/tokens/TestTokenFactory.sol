@@ -93,12 +93,9 @@ contract TestTokenFactory {
 
     /**
      * @notice Batch create common test tokens
-     * @dev Create common tokens like WETH, USDC, USDT, CAKE, BNB
+     * @dev Create common tokens like USDC, USDT, CAKE, BNB
      */
     function createCommonTokens() external {
-        // WETH - 18 decimals
-        createToken("Wrapped Ether", "WETH", 18, 1000000 * 10**18, TokenType.Standard);
-        
         // USDC - 6 decimals
         createToken("USD Coin", "USDC", 6, 1000000 * 10**6, TokenType.Standard);
         
